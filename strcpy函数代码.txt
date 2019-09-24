@@ -6,5 +6,7 @@ char* my_strcpy(char*b, char*a)
         *b++ = *a++;
     }
     *b = '\0';
+    /**远程edi
+    **/
     return b;
 }
