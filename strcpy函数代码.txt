@@ -6,5 +6,8 @@ char* my_strcpy(char*b, char*a)
         *b++ = *a++;
     }
     *b = '\0';
+/**
+ 本地编辑
+**/
     return b;
 }
