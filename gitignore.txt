@@ -1,0 +1,9 @@
+# Files built by Visual Studio
+*.ilk
+*.obj
+*.pch
+*.pdb
+*.log
+*.exe
+*.dll
+*.db
