@@ -1,0 +1,146 @@
+from __future__ import print_function
+import tensorflow as tf
+from tensorflow.examples.tutorials.mnist import input_data
+mnist = input_data.read_data_sets("MNIST_data/",one_hot=True)
+
+#定义神经层的函数
+def add_layer(inputs,in_size,out_size,activation_function=None):
+    with tf.name_scope('layer'):
+        with tf.name_scope('Weights'):
+            Weights=tf.Variable(tf.random_normal([in_size,out_size]))
+        with tf.name_scope('biases'):
+            biases=tf.Variable(tf.zeros([1,out_size])+0.1)
+        with tf.name_scope('Wx_plus_b'):
+            Wx_plus_b=tf.matmul(inputs,Weights)+biases
+        if activation_function is None:
+            outputs=Wx_plus_b
+        else:
+            outputs=activation_function (Wx_plus_b)
+        return outputs
+
+def compute_accuracy(v_xs,v_ys):     #导入训练集test的参数
+    global prediction  #全局定义
+    y_pre=sess.run(prediction,feed_dict={xs:v_xs,keep_prob:1})  #生成预测值
+    correct_prediction=tf.equal(tf.argmax(y_pre,1),tf.argmax(v_ys,1)) #预测值与真实值的是否相同，1表示按行返回
+                                    # argmax(，1)按行返回最大值的索引
+    accuracy=tf.reduce_mean(tf.cast(correct_prediction,tf.float32))  #看有多少个是对的
+    result=sess.run(accuracy,feed_dict={xs:v_xs,ys:v_ys,keep_prob:1}) #运行得出结果
+    return result
+
+
+#def weight_variable(shape):
+    #inital=tf.truncated_normal(shape,stddev=0.1)  #该行用来获取随机变量，shape表示生成张量的维度，mean是均值
+                                                  # stddev是标准差，这个函数产生的随机数与均值的差距不会超过两倍的标准差
+    #return tf.Variable(initial)
+
+def weight_variable(shape):
+    initial=tf.truncated_normal(shape,stddev=0.1)
+    return tf.Variable(initial)
+
+
+def bias_varizble(shape):
+    initial=tf.constant(0.1,shape=shape) #先初始化initial的值为0.1
+    return tf.Variable(initial)
+
+#定义卷积层
+def conv2d(x,W):  #x是图片的所有参数，W是此卷积层的权重
+    # stride=[1,x_movement,y_movement,1] 步长
+    # stride[0]=stride[3]=1 规定必须为1
+    return tf.nn.conv2d(x,W,strides=[1,1,1,1],padding='SAME') #padding的模式有两种
+
+
+#ksize:池化窗口大小【1，，，1】
+#pooling:相当于将特征表现更加明显
+#接着定义池化pooling，为了得到更多的图片信息，padding时我们选的是一次一步，也就是strides[1]=strides[2]=1，
+#这样得到的图片尺寸没有变化，而我们希望压缩一下图片也就是参数能少一些从而减小系统的复杂度，
+#因此我们采用pooling来稀疏化参数，也就是卷积神经网络中所谓的下采样层。
+#pooling 有两种，一种是最大值池化，一种是平均值池化，本例采用的是最大值池化tf.max_pool()。
+#池化的核函数大小为2x2，因此ksize=[1,2,2,1]，步长为2，因此strides=[1,2,2,1]:
+def max_pool_2x2(x):
+    return tf.nn.max_pool(x,ksize=[1,2,2,1],strides=[1,2,2,1],padding='SAME')
+
+
+# 导入数据
+xs=tf.placeholder(tf.float32,[None,784])#每个照片有784=28x28个像素点
+ys=tf.placeholder(tf.float32,[None,10])#10个输出 （真实值）
+keep_prob=tf.placeholder(tf.float32)#我们还定义了dropout的placeholder，它是解决拟合的有效手段
+x_image=tf.reshape(xs,[-1,28,28,1])#接着呢，我们需要处理我们的xs，把xs的形状变成[-1,28,28,1]
+# -1代表先不考虑输入的图片例子多少这个维度
+# 后面的1是channel的数量，因为我们输入的图片是黑白的，因此channel是1，相当于‘高度’是1
+# 例如如果是RGB图像，那么channel就是3。
+
+
+#conv1 layer
+#接着我们定义第一层卷积,先定义本层的Weight,本层我们的卷积核patch的大小是5x5，
+# 因为黑白图片channel是1所以输入是1，输出是32个featuremap
+W_conv1=weight_variable([5,5, 1,32])
+b_conv1=bias_varizble([32]) #相当于‘高度’
+#定义第一个卷积层
+h_conv1=tf.nn.relu(conv2d(x_image,W_conv1)+b_conv1) #output size 28x28x32
+#,同时我们对h_conv1进行非线性处理，也就是激活函数来处理喽，
+# 这里我们用的是tf.nn.relu（修正线性单元）来处理
+h_pool1=max_pool_2x2(h_conv1) #output size 14x14x32
+
+
+#conv2 layer
+#接着呢，同样的形式我们定义第二层卷积，本层我们的输入就是上一层的输出，
+# 本层我们的卷积核patch的大小是5x5，
+# 有32个featuremap所以输入就是32，输出呢我们定为64
+W_conv2=weight_variable([5,5,32,64])
+b_conv2=bias_varizble([64]) #相当于‘高度’
+#定义第一个卷积层
+h_conv2=tf.nn.relu(conv2d(h_pool1,W_conv2)+b_conv2) #output size 14x14x64
+h_pool2=max_pool_2x2(h_conv2) #output size 7x7x64
+
+
+
+#建立全连接层
+
+##func1 layer##
+
+#此时weight_variable的shape输入就是第二个卷积层展平了的输出大小: 7x7x64，
+#后面的输出size我们继续扩大，定为1024
+W_fc1=weight_variable([7*7*64,1024])
+b_fc1=bias_varizble([1024])
+#[n_samples,7,7,64]->>[n_samples,7*7*64])
+#进入全连接层时, 我们通过tf.reshape()将h_pool2的输出值从一个三维的变为一维的数据,
+# -1表示先不考虑输入图片例子维度,
+# 将上一个输出结果展平.
+h_pool2_flat=tf.reshape(h_pool2,[-1,7*7*64])
+h_fc1=tf.nn.relu(tf.matmul(h_pool2_flat,W_fc1)+b_fc1)#这一层输出的结果
+#考虑过渡拟合的问题
+h_fc1_drop=tf.nn.dropout(h_fc1,keep_prob)
+
+##func2 layer##
+
+# 此时weight_variable的shape输入就是第二个卷积层展平了的输出大小: 7x7x64，
+# 后面的输出size我们继续扩大，定为1024
+W_fc2 = weight_variable([1024, 10])
+b_fc2 = bias_varizble([10])
+prediction= tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)  # 这一层输出的结果
+
+
+
+#计算真实值与预测值之间的误差
+cross_entropy=tf.reduce_mean(-tf.reduce_sum(ys*tf.log(prediction),reduction_indices=[1]))
+#交叉熵与softmax
+
+#如何让机器学习提升它的准确率
+train_step=tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)#0.0001
+#以0.5的效率来减少误差cross_entropy
+
+sess=tf.Session()
+#初始化所有
+if int((tf.__version__).split('.')[1]) < 12 and int((tf.__version__).split('.')[0]) < 1:
+    init = tf.initialize_all_variables()
+else:
+    init = tf.global_variables_initializer()
+sess.run(init)
+
+for i in range(1000):
+    batch_xs, batch_ys = mnist.train.next_batch(100)
+    sess.run(train_step, feed_dict={xs: batch_xs, ys: batch_ys, keep_prob: 0.5})
+    if i % 50 == 0:
+        print(compute_accuracy(
+            mnist.test.images[:1000], mnist.test.labels[:1000]))
+
